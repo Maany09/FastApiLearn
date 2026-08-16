@@ -47,10 +47,11 @@ async def get_campaign_by_id(campaign_id: int):
         else:
             return "No campaigns found"
         
-@app.get("/campaigns/{name}")
+@app.get("/campaigns_by_name/{name}")
 async def get_campaign_by_name(name: str):
-    for element in data:
-        if element["name"] == name:
-            return {f"campaigns with name {name}": element}
-        else:
-            return {f"no campaigns with name {name} is found."}
+    for elements in data:
+
+        if elements["name"] == name:
+            return {"Campaigns": elements}
+        
+    return {f'no campaigns with name "{name}" is found.'}
