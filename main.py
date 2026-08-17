@@ -95,7 +95,7 @@ async def create_campaigns(body: dict[str, Any], session: SessionDep):
 
     # checks for empty name 
     if name == None or name.strip() == "":
-        return {"error : Name cant be empty"}
+        return {"error" : "Name cant be empty"}
 
     # we dont give id manually because we have set campaign_id to Primary key which generates  id automatically and can also handle the uniqueness of the id assigned to the campaign.
     new_campaign = Campaign(
@@ -124,7 +124,7 @@ async def create_campaigns(body: dict[str, Any], session: SessionDep):
 
 
 # created put request for updating campaigns
-@app.put("/campaigns/{campaign_id}")
+@app.put("/campaigns_by_id/{campaign_id}")
 async def update_existing_campaign(campaign_id: int, 
                                    body: dict[str, Any],
                                    session: SessionDep):
@@ -156,24 +156,50 @@ async def update_existing_campaign(campaign_id: int,
     # it will refresh the updated campaign in database
     session.refresh(campaign)
 
-    # it will show the updated database
+    # it will show the updated campaign
     return {"message":"Campaign updation - successs", "campaign": campaign}
 
 
-# created delete request
-@app.delete("/campaigns/{campaign_id}")
+# created delete request (by id)
+@app.delete("/campaigns/id/{campaign_id}")
 async def delete_existing_campaign(campaign_id: int, session: SessionDep):
 
+    # it retrieves the campaign id that matches with the input campaign id
     campaigns = session.get(Campaign, campaign_id)
 
+    #  checks wether the id does not exist in database (Campaign)
     if campaigns == None:
         return {"message" : f"No campaigns with the id {campaign_id} is found"}
 
+    # if id exist in database, then it will be deleted
     session.delete(campaigns)
 
     session.commit()
 
+    # prints the deleted id
     return {"message": "Campaign deleted succesfully",
             "campaign": campaigns}
 
+
+# created delete request (by name)
+@app.delete("/campaigns/name/{name}")
+async def delete_existing_campaign_by_name(name: str, session: SessionDep):
+
+    # selected the name that matches with input name and finds from database
+    statement = select(Campaign).where(Campaign.name == name)
+
+    campaign_name = session.exec(statement).first()
+
+    # checks that the name is not empty
+    if campaign_name == None:
+        raise HTTPException(status_code=404,detail="No name found to delete")
+
+    # deletes the campaign found by name if name exist in database
+    session.delete(campaign_name)
+
+    session.commit()
+
+    # prints the deleted campaign
+    return {"message": f"Campaign by name {name} deleted successfully",
+            "campaign": campaign_name }
 
