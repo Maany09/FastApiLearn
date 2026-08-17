@@ -1,7 +1,6 @@
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, Query, HTTPException
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from datetime import datetime
-import random
 from typing import Any, Annotated
 from contextlib import asynccontextmanager
 
@@ -68,7 +67,7 @@ async def get_campaign_by_id(campaign_id: int, session: SessionDep):
     campaign_with_id = session.get(Campaign, campaign_id)
 
     if campaign_with_id["campaign_id"] != campaign_id:
-        return {"No campaign found"}
+        return {"No campaign with the id {campaign_id} is found"}
     else:
         return {"campaign by id": campaign_with_id}
 
@@ -80,7 +79,7 @@ async def get_campaign_by_name(name: str, session: SessionDep):
     campaign_with_name = session.get(Campaign, name)
 
     if campaign_with_name["name"] != name:
-        return {f"message": "No campaigns with the name {name} is found"}
+        return {f"message": "No campaigns with the name - {name} is found"}
     else:
         return {"campaign by name": campaign_with_name}
 
@@ -118,33 +117,37 @@ async def create_campaigns(body: dict[str, Any], session: SessionDep):
 
 # created put request for updating campaigns
 @app.put("/campaigns/{campaign_id}")
-async def update_existing_campaign(campaign_id: int, body: dict[str, Any]):
-    
+async def update_existing_campaign(campaign_id: int, 
+                                   body: dict[str, Any],
+                                   session: SessionDep):
 
-    for element in data:
-        if element["campaign_id"] == campaign_id:
+    # to find the existing campaign id
+    campaign = session.get(Campaign, campaign_id)
 
-            # add the updated name and campaign id
-            name = body.get("name")
-            campaign_id = body.get("campaign_id")
+    # check if campaign with entered id, exist or not
+    if campaign == None:
+        raise HTTPException(status_code=404,
+                            detail="No campaign found")
 
-            # checks if name or id is not empty
-            if name == None or name.strip == "":
-                return {"error": "Name cant be empty"}
+    # if exist then it will take a new name
+    name = body.get("name")
 
-            if campaign_id == None:
-                return {"error": "id cant be empty"}
+    # checks if name is empty
+    if name == None or name.strip() == "":
+        raise HTTPException(status_code=404,
+                            detail="name cant be empty")
 
-            # Updates the mock data
-            element["name"] = name
-            element["campaign_id"] = campaign_id
+    # update the name
+    campaign.name = name
 
+    # it will save it to database
+    session.commit()
 
-            # gives the updated campaign on screen
-            return {"Message": "Campaign Updated - Success",
-                    "campaign": element}
+    # it will refresh the updated campaign in database
+    session.refresh(campaign)
 
-    return {"error" : "campaign not found"}
+    # it will show the updated database
+    return {"message":"Campaign updation - successs", "campaign": campaign}
 
 
 # created delete request
