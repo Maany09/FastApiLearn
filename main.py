@@ -3,6 +3,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 from datetime import datetime
 import random
 from typing import Any, Annotated
+from contextlib import asynccontextmanager
 
 # Created campaign Model.
 class Campaign(SQLModel, table=True):
@@ -11,37 +12,42 @@ class Campaign(SQLModel, table=True):
     due_date: datetime
     created_at: datetime
 
-app = FastAPI(root_path="/api/v1")
+
+# create database engine
+sqlite_file_name = "campaigns.db"
+sqlite_url = f"sqlite:///{sqlite_file_name}"
+
+connect_args = {"check_same_thread": False}
+
+engine = create_engine(sqlite_url, connect_args=connect_args)
+
+
+# created database session
+def get_session():
+    with Session(engine) as session:
+        yield session
+
+
+SessionDep = Annotated[Session, Depends(get_session)]
+
+
+# created db and table, engine called
+def create_db_tables():
+    SQLModel.metadata.create_all(engine)
+
+# created db tables on start
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_tables()
+
+    yield
+
+app = FastAPI(root_path="/api/v1", lifespan=lifespan)
+
 
 @app.get("/")
 async def get_root():
     return {"message": "Hello World"}
-
-# added mock data(no db)
-
-data = [
-     {
-        "campaign_id": 1,
-        "name": "Sam Altman",
-        "due_date": datetime.now(),
-        "created_at": datetime.now()     
-    },
-
-    {
-        "campaign_id": 2,
-        "name": "Zuck Duffy",
-        "due_date": datetime.now(),
-        "created_at": datetime.now()
-    }
-]
-
-"""
-Campaigns
-- campaign_id
-- name
-- due_date
-- created_at
-"""
 
 
 @app.get("/campaigns")
@@ -71,35 +77,34 @@ async def get_campaign_by_name(name: str):
 
 
 @app.post("/campaigns")
-async def create_campaigns(body: dict[str, Any]):
+async def create_campaigns(body: dict[str, Any], session: SessionDep):
 
-    # will take name and campaign_id
+    # will take name
     name = body.get("name")
-    campaign_id = body.get("campaign_id")
 
     # checks for empty name 
     if name == None or name.strip() == "":
         return {"error : Name cant be empty"}
-    
-    # if id empty, it will generate a random num
-    if campaign_id == None:
-        campaign_id = random.randint(20,1000)
 
-    # checks if id already exist in data
-    for campaign in data:
-        if campaign["campaign_id"] == campaign_id:
-            return{"This campaign already exist."}
+    # we dont give id manually because we have set campaign_id to Primary key which generates  id automatically and can also handle the uniqueness of the id assigned to the campaign.
 
-    new_campaign = {
-                "campaign_id": campaign_id,
-                "name": name,
-                "due_date": datetime.now(),
-                "created_at": datetime.now()
-                }
+    new_campaign = Campaign(
+        name= name,
+        due_date= datetime.now(),
+        created_at= datetime.now()
+    )
 
-    data.append(new_campaign)
+    # adding campaign to the databse
+    session.add(new_campaign)
 
-    return {"Campaigns": new_campaign}
+    # saving campaign
+    session.commit()
+
+    # refreshing and showing the generated campaign
+    session.refresh(new_campaign)
+
+    return {"message": "campaign creation - Success",
+            "campaign": new_campaign}
 
 # created put request for updating campaigns
 @app.put("/campaigns/{campaign_id}")
