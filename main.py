@@ -93,3 +93,50 @@ async def create_campaigns(body: dict[str, Any]):
     data.append(new_campaign)
 
     return {"Campaigns": new_campaign}
+
+# created put request for updating campaigns
+@app.put("/campaigns/{campaign_id}")
+async def update_existing_campaign(campaign_id: int, body: dict[str, Any]):
+    
+
+    for element in data:
+        if element["campaign_id"] == campaign_id:
+
+            # add the updated name and campaign id
+            name = body.get("name")
+            campaign_id = body.get("campaign_id")
+
+            # checks if name or id is not empty
+            if name == None or name.strip == "":
+                return {"error": "Name cant be empty"}
+
+            if campaign_id == None:
+                return {"error": "id cant be empty"}
+
+            # Updates the mock data
+            element["name"] = name
+            element["campaign_id"] = campaign_id
+
+
+            # gives the updated campaign on screen
+            return {"Message": "Campaign Updated - Success",
+                    "campaign": element}
+
+    return {"error" : "campaign not found"}
+
+
+# created delete request
+@app.delete("/campaigns/{campaign_id}")
+async def delete_existing_campaign(campaign_id: int):
+
+    for element in data:
+        if element["campaign_id"] == campaign_id:
+
+
+            # delete the given campaign by its campaign_id
+            data.remove(element)
+
+            return {"message": "campaign removed successfully","campaign": element}
+
+    return {"error": "campaign does not exist"}
+
