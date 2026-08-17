@@ -1,8 +1,15 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Query
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 from datetime import datetime
 import random
-from typing import Any
+from typing import Any, Annotated
 
+# Created campaign Model.
+class Campaign(SQLModel, table=True):
+    campaign_id: int | None= Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    due_date: datetime
+    created_at: datetime
 
 app = FastAPI(root_path="/api/v1")
 
