@@ -51,31 +51,41 @@ async def get_root():
 
 
 @app.get("/campaigns")
-async def get_campaigns():
-    return {"campaigns": data}
+async def get_campaigns(session: SessionDep):
+
+    statement = select(Campaign)
+
+    campaign = session.exec(statement).all()
+
+    return {"message": "All campaigns fetched succesfully",
+            "campaigns": campaign}
 
 
 # get campaign by id
 @app.get("/campaigns/{campaign_id}")
-async def get_campaign_by_id(campaign_id: int):
+async def get_campaign_by_id(campaign_id: int, session: SessionDep):
 
-    for element in data:
-        if element["campaign_id"] == campaign_id:
-            return {"campaigns": element}
-        else:
-            return "No campaigns found"
+    campaign_with_id = session.get(Campaign, campaign_id)
+
+    if campaign_with_id["campaign_id"] != campaign_id:
+        return {"No campaign found"}
+    else:
+        return {"campaign by id": campaign_with_id}
+
 
 # Get campaign by name
 @app.get("/campaigns_by_name/{name}")
-async def get_campaign_by_name(name: str):
-    for elements in data:
+async def get_campaign_by_name(name: str, session: SessionDep):
 
-        if elements["name"] == name:
-            return {f"Campaigns by name {name}": elements}
-        
-    return {f'no campaigns with name "{name}" is found.'}
+    campaign_with_name = session.get(Campaign, name)
+
+    if campaign_with_name["name"] != name:
+        return {f"message": "No campaigns with the name {name} is found"}
+    else:
+        return {"campaign by name": campaign_with_name}
 
 
+# to add the campaign
 @app.post("/campaigns")
 async def create_campaigns(body: dict[str, Any], session: SessionDep):
 
@@ -87,7 +97,6 @@ async def create_campaigns(body: dict[str, Any], session: SessionDep):
         return {"error : Name cant be empty"}
 
     # we dont give id manually because we have set campaign_id to Primary key which generates  id automatically and can also handle the uniqueness of the id assigned to the campaign.
-
     new_campaign = Campaign(
         name= name,
         due_date= datetime.now(),
@@ -105,6 +114,7 @@ async def create_campaigns(body: dict[str, Any], session: SessionDep):
 
     return {"message": "campaign creation - Success",
             "campaign": new_campaign}
+
 
 # created put request for updating campaigns
 @app.put("/campaigns/{campaign_id}")
