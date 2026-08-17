@@ -53,11 +53,11 @@ async def get_root():
 async def get_campaigns(session: SessionDep):
 
     statement = select(Campaign)
-
-    campaign = session.exec(statement).all()
+    
+    campaigns = session.exec(statement).all()
 
     return {"message": "All campaigns fetched succesfully",
-            "campaigns": campaign}
+            "campaign": campaigns}
 
 
 # get campaign by id
@@ -66,22 +66,24 @@ async def get_campaign_by_id(campaign_id: int, session: SessionDep):
 
     campaign_with_id = session.get(Campaign, campaign_id)
 
-    if campaign_with_id["campaign_id"] != campaign_id:
-        return {"No campaign with the id {campaign_id} is found"}
-    else:
-        return {"campaign by id": campaign_with_id}
+    if campaign_with_id == None:
+        return {"message": "No campaign found"}
+
+    return{"message": f"Campaign with the id {campaign_id} is found successfully","campaign": campaign_with_id}
 
 
 # Get campaign by name
 @app.get("/campaigns_by_name/{name}")
 async def get_campaign_by_name(name: str, session: SessionDep):
 
-    campaign_with_name = session.get(Campaign, name)
+    statement = select(Campaign).where(Campaign.name == name)
 
-    if campaign_with_name["name"] != name:
-        return {f"message": "No campaigns with the name - {name} is found"}
-    else:
-        return {"campaign by name": campaign_with_name}
+    campaign_by_name = session.exec(statement).all()
+
+    if campaign_by_name == None:
+        return {"message" : "No campaign found"}
+
+    return {"message": f'Campaign with the name "{name}" is found successfully', "campaign" : campaign_by_name}
 
 
 # to add the campaign
@@ -112,7 +114,13 @@ async def create_campaigns(body: dict[str, Any], session: SessionDep):
     session.refresh(new_campaign)
 
     return {"message": "campaign creation - Success",
-            "campaign": new_campaign}
+            "campaign": {
+                        "campaign_id": new_campaign.campaign_id,
+                        "name": new_campaign.name,
+                        "due_date": new_campaign.due_date,
+                        "created_at": new_campaign.created_at
+                        }
+            }
 
 
 # created put request for updating campaigns
@@ -131,6 +139,7 @@ async def update_existing_campaign(campaign_id: int,
 
     # if exist then it will take a new name
     name = body.get("name")
+    campaign_id = body.get("campaign_id")
 
     # checks if name is empty
     if name == None or name.strip() == "":
@@ -139,6 +148,7 @@ async def update_existing_campaign(campaign_id: int,
 
     # update the name
     campaign.name = name
+    campaign.campaign_id = campaign_id
 
     # it will save it to database
     session.commit()
@@ -152,16 +162,18 @@ async def update_existing_campaign(campaign_id: int,
 
 # created delete request
 @app.delete("/campaigns/{campaign_id}")
-async def delete_existing_campaign(campaign_id: int):
+async def delete_existing_campaign(campaign_id: int, session: SessionDep):
 
-    for element in data:
-        if element["campaign_id"] == campaign_id:
+    campaigns = session.get(Campaign, campaign_id)
 
+    if campaigns == None:
+        return {"message" : f"No campaigns with the id {campaign_id} is found"}
 
-            # delete the given campaign by its campaign_id
-            data.remove(element)
+    session.delete(campaigns)
 
-            return {"message": "campaign removed successfully","campaign": element}
+    session.commit()
 
-    return {"error": "campaign does not exist"}
+    return {"message": "Campaign deleted succesfully",
+            "campaign": campaigns}
+
 
